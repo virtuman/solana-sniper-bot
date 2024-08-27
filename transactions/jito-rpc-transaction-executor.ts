@@ -68,8 +68,6 @@ export class JitoTransactionExecutor implements TransactionExecutor {
       const jitoFeeTx = new VersionedTransaction(jitTipTxFeeMessage);
       jitoFeeTx.sign([payer]);
 
-      const jitoTxsignature = bs58.encode(jitoFeeTx.signatures[0]);
-
       // Serialize the transactions once here
       const serializedjitoFeeTx = bs58.encode(jitoFeeTx.serialize());
       const serializedTransaction = bs58.encode(transaction.serialize());
@@ -101,7 +99,10 @@ export class JitoTransactionExecutor implements TransactionExecutor {
       if (successfulResults.length > 0) {
         logger.trace(`At least one successful response`);
         logger.debug(`Confirming jito transaction...`);
-        return await this.confirm(jitoTxsignature, latestBlockhash);
+
+        const tokenTxSignature = bs58.encode(transaction.signatures[0]);
+
+        return await this.confirm(tokenTxSignature, latestBlockhash);
       } else {
         logger.debug(`No successful responses received for jito`);
       }
@@ -111,7 +112,7 @@ export class JitoTransactionExecutor implements TransactionExecutor {
       if (error instanceof AxiosError) {
         logger.trace({ error: error.response?.data }, 'Failed to execute jito transaction');
       }
-      logger.error('Error during transaction execution', error);
+      logger.error({ error: error }, 'Error during transaction execution');
       return { confirmed: false };
     }
   }
