@@ -82,7 +82,7 @@ export class Bot {
 
   async validate() {
     //TODO for testing Purpose
-    return true;
+    // return true;
     try {
       await getAccount(this.connection, this.config.quoteAta, this.connection.commitment);
     } catch (error) {

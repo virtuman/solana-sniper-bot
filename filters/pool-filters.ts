@@ -49,8 +49,8 @@ export class PoolFilters {
     if (CHECK_MARKET_CAP) {
 
       let marketCapConfig = {
-        targetMarketCap: new TokenAmount(args.quoteToken, '100000000000'), // 100K in base units
-        timeWindow: 2 * 60 * 1000     // 2 minute window to reach target
+        targetMarketCap: new TokenAmount(args.quoteToken, '606000000000'), // 100K in base units
+        timeWindow: 5 * 60 * 1000     // 2 minute window to reach target
       };
       this.filters.push(new MarketCapFilter(connection, marketCapConfig))
     }
