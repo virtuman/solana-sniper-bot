@@ -5,7 +5,7 @@ import { BurnFilter } from './burn.filter';
 import { MutableFilter } from './mutable.filter';
 import { RenouncedFreezeFilter } from './renounced.filter';
 import { PoolSizeFilter } from './pool-size.filter';
-import { CHECK_IF_BURNED, CHECK_IF_FREEZABLE, CHECK_IF_MINT_IS_RENOUNCED, CHECK_IF_MUTABLE, CHECK_IF_SOCIALS, CHECK_MARKET_CAP, logger } from '../helpers';
+import { CHECK_IF_BURNED, CHECK_IF_FREEZABLE, CHECK_IF_MINT_IS_RENOUNCED, CHECK_IF_MUTABLE, CHECK_IF_SOCIALS, CHECK_MARKET_CAP, logger, MARKETCAP_TARGET, MARKETCAP_TARGET_TIME } from '../helpers';
 import { MarketCapFilter } from './market-cap-filter';
 
 export interface Filter {
@@ -49,8 +49,8 @@ export class PoolFilters {
     if (CHECK_MARKET_CAP) {
 
       let marketCapConfig = {
-        targetMarketCap: new TokenAmount(args.quoteToken, '606000000000'), // 100K in base units
-        timeWindow: 5 * 60 * 1000     // 2 minute window to reach target
+        targetMarketCap: new TokenAmount(args.quoteToken, MARKETCAP_TARGET), // 100K in base units
+        timeWindow: Number(MARKETCAP_TARGET_TIME) * 60 * 1000     // 2 minute window to reach target
       };
       this.filters.push(new MarketCapFilter(connection, marketCapConfig))
     }
