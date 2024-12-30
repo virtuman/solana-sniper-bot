@@ -337,29 +337,6 @@ export class Bot {
     }
   }
 
-  async swap_log(direction: string, tokenIn: Token, tokenOut: Token, amountIn: TokenAmount, computedAmountOut: any) {
-    if (direction === 'buy') {
-      let trade = this.trades.get(tokenOut.mint.toString());
-      if (!trade) {
-        logger.error({ mint: tokenOut.mint.toString() }, `Trade not found`);
-      } else {
-        // @ts-ignore
-        const amountIn = Number(amountIn.toFixed());
-        trade.open(amountIn, this.config.fee + Number(computedAmountOut.fee.toFixed()) / LAMPORTS_PER_SOL);
-      }
-    }
-    if (direction === 'sell') {
-      let trade = this.trades.get(tokenIn.mint.toString());
-      if (!trade) {
-        logger.error({ mint: tokenIn.mint.toString() }, `Trade not found`);
-      } else {
-        const amountOut = Number(computedAmountOut.amountOut.toFixed());
-        trade.close(amountOut, this.config.fee + Number(computedAmountOut.fee.toFixed()) / LAMPORTS_PER_SOL, 'closed');
-        this.balance += trade.profit;
-      }
-    }
-  }
-
   // noinspection JSUnusedLocalSymbols
   private async swap(
     poolKeys: LiquidityPoolKeysV4,
@@ -429,7 +406,12 @@ export class Bot {
     const transaction = new VersionedTransaction(messageV0);
     transaction.sign([wallet, ...innerTransaction.signers]);
 
-    return this.txExecutor.executeAndConfirm(transaction, wallet, latestBlockhash);
+    const transactionResult = await this.txExecutor.executeAndConfirm(transaction, wallet, latestBlockhash);
+    if (transactionResult.confirmed) {
+      await this.swap_log(direction, tokenIn, tokenOut, amountIn, computedAmountOut);
+    }
+
+    return transactionResult;
   }
 
   private async filterMatch(poolKeys: LiquidityPoolKeysV4) {
@@ -569,5 +551,27 @@ export class Bot {
     } while (timesChecked < timesToCheck);
 
     return true;
+  }
+
+  async swap_log(direction: string, tokenIn: Token, tokenOut: Token, amountIn: TokenAmount, computedAmountOut: any) {
+    if (direction === 'buy') {
+      let trade = this.trades.get(tokenOut.mint.toString());
+      if (!trade) {
+        logger.error({ mint: tokenOut.mint.toString() }, `Trade not found`);
+      } else {
+        const amountIn = Number(amountIn.toFixed());
+        trade.open(amountIn, this.config.fee + (Number(computedAmountOut.fee.toFixed()) / LAMPORTS_PER_SOL));
+      }
+    }
+    if (direction === 'sell') {
+      let trade = this.trades.get(tokenIn.mint.toString());
+      if (!trade) {
+        logger.error({ mint: tokenIn.mint.toString() }, `Trade not found`);
+      } else {
+        const amountOut = Number(computedAmountOut.amountOut.toFixed());
+        trade.close(amountOut, this.config.fee + (Number(computedAmountOut.fee.toFixed()) / LAMPORTS_PER_SOL), 'closed');
+        this.balance += trade.profit;
+      }
+    }
   }
 }
