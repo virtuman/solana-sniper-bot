@@ -41,7 +41,7 @@ export interface BotConfig {
   quoteToken: Token;
   quoteAmount: TokenAmount;
   quoteAta: PublicKey;
-	maxTokensAtTheTime: number;
+  maxTokensAtTheTime: number;
   useSnipeList: boolean;
   autoSell: boolean;
   autoBuyDelay: number;
@@ -50,7 +50,7 @@ export interface BotConfig {
   maxSellRetries: number;
   unitLimit: number;
   unitPrice: number;
-  fee: number,
+  fee: number;
   takeProfit: number;
   stopLoss: number;
   trailingStopLoss: boolean;
@@ -65,19 +65,17 @@ export interface BotConfig {
 }
 
 export class Bot {
-	public balance: number = 0;
-	private tradesCount: number = 0;
-	private trades: Map<string, Trade> = new Map<string, Trade>();
-	private logFilename: string= '';
-
-	// snipe list
+  public balance: number = 0;
+  public readonly isWarp: boolean = false;
+  public readonly isJito: boolean = false;
+  private tradesCount: number = 0;
+  private trades: Map<string, Trade> = new Map<string, Trade>();
+  private logFilename: string = '';
+  // snipe list
   private readonly snipeListCache?: SnipeListCache;
-
   private readonly semaphore: Semaphore;
   private sellExecutionCount = 0;
   private readonly stopLoss = new Map<string, TokenAmount>();
-  public readonly isWarp: boolean = false;
-  public readonly isJito: boolean = false;
 
   constructor(
     private readonly connection: Connection,
@@ -95,27 +93,30 @@ export class Bot {
       this.snipeListCache.init();
     }
 
-		this.logFilename = this.config.logFilename;
-	}
+    this.logFilename = this.config.logFilename;
+  }
 
-	async init() {
-		await this.updateBalance();
+  async init() {
+    await this.updateBalance();
 
-		// Read trades from log file, and get last trade id
-		const data = fs.readFileSync(this.logFilename, { flag: 'a+' });
-		const lines = data.toString().split('\n').filter((line) => line.length > 0);
-		const objects = lines.map(line => JSON.parse(line));
-		const lastTrade = objects[objects.length - 1];
-		if (lastTrade) {
-			this.tradesCount = lastTrade.id;
-		}
-	}
+    // Read trades from log file, and get last trade id
+    const data = fs.readFileSync(this.logFilename, { flag: 'a+' });
+    const lines = data
+      .toString()
+      .split('\n')
+      .filter((line) => line.length > 0);
+    const objects = lines.map((line) => JSON.parse(line));
+    const lastTrade = objects[objects.length - 1];
+    if (lastTrade) {
+      this.tradesCount = lastTrade.id;
+    }
+  }
 
-	async updateBalance() {
-		const solBalance = (await this.connection.getBalance(this.config.wallet.publicKey)) / LAMPORTS_PER_SOL;
-		const quoteBalance = (await this.connection.getBalance(this.config.quoteAta)) / LAMPORTS_PER_SOL;
-		this.balance = solBalance + quoteBalance;
-	}
+  async updateBalance() {
+    const solBalance = (await this.connection.getBalance(this.config.wallet.publicKey)) / LAMPORTS_PER_SOL;
+    const quoteBalance = (await this.connection.getBalance(this.config.quoteAta)) / LAMPORTS_PER_SOL;
+    this.balance = solBalance + quoteBalance;
+  }
 
   async validate() {
     try {
@@ -171,7 +172,7 @@ export class Bot {
         }
       }
 
-      let trade = new Trade(poolState.baseMint.toString(), this.trade_log_filename);
+      let trade = new Trade(poolState.baseMint.toString(), this.logFilename);
       trade.transitionStart();
       this.trades.set(poolState.baseMint.toString(), trade);
 
@@ -260,9 +261,9 @@ export class Bot {
       const market = await this.marketStorage.get(poolData.state.marketId.toString());
       const poolKeys: LiquidityPoolKeysV4 = createPoolKeys(new PublicKey(poolData.id), poolData.state, market);
 
-			if (trade) {
-				trade.transitionStart();
-			}
+      if (trade) {
+        trade.transitionStart();
+      }
 
       for (let i = 0; i < this.config.maxSellRetries; i++) {
         try {
@@ -321,16 +322,39 @@ export class Bot {
         this.balance += trade.profit;
       }
     } finally {
-			await this.updateBalance();
-			if (trade) {
-				this.tradesCount++;
-				const err = trade.completeAndLog(this.balance, this.tradesCount);
-				if (err) {
-					logger.warn({ error: err }, `Failed to write trade in journal`);
-				}
-				this.trades.delete(rawAccount.mint.toString());
-			}
+      await this.updateBalance();
+      if (trade) {
+        this.tradesCount++;
+        const err = trade.completeAndLog(this.balance, this.tradesCount);
+        if (err) {
+          logger.warn({ error: err }, `Failed to write trade in journal`);
+        }
+        this.trades.delete(rawAccount.mint.toString());
+      }
       this.sellExecutionCount--;
+    }
+  }
+
+  async swap_log(direction: string, tokenIn: Token, tokenOut: Token, amountIn: TokenAmount, computedAmountOut: any) {
+    if (direction === 'buy') {
+      let trade = this.trades.get(tokenOut.mint.toString());
+      if (!trade) {
+        logger.error({ mint: tokenOut.mint.toString() }, `Trade not found`);
+      } else {
+        // @ts-ignore
+        const amountIn = Number(amountIn.toFixed());
+        trade.open(amountIn, this.config.fee + Number(computedAmountOut.fee.toFixed()) / LAMPORTS_PER_SOL);
+      }
+    }
+    if (direction === 'sell') {
+      let trade = this.trades.get(tokenIn.mint.toString());
+      if (!trade) {
+        logger.error({ mint: tokenIn.mint.toString() }, `Trade not found`);
+      } else {
+        const amountOut = Number(computedAmountOut.amountOut.toFixed());
+        trade.close(amountOut, this.config.fee + Number(computedAmountOut.fee.toFixed()) / LAMPORTS_PER_SOL, 'closed');
+        this.balance += trade.profit;
+      }
     }
   }
 
@@ -403,12 +427,7 @@ export class Bot {
     const transaction = new VersionedTransaction(messageV0);
     transaction.sign([wallet, ...innerTransaction.signers]);
 
-    const transactionResult = await this.txExecutor.executeAndConfirm(transaction, wallet, latestBlockhash);
-    if (transactionResult.confirmed) {
-      await this.swap_log(direction, tokenIn, tokenOut, amountIn, computedAmountOut);
-    }
-
-    return transactionResult;
+    return this.txExecutor.executeAndConfirm(transaction, wallet, latestBlockhash);
   }
 
   private async filterMatch(poolKeys: LiquidityPoolKeysV4) {
@@ -548,27 +567,5 @@ export class Bot {
     } while (timesChecked < timesToCheck);
 
     return true;
-  }
-
-  async swap_log(direction: string, tokenIn: Token, tokenOut: Token, amountIn: TokenAmount, computedAmountOut: any) {
-    if (direction === 'buy') {
-      let trade = this.trades.get(tokenOut.mint.toString());
-      if (!trade) {
-        logger.error({ mint: tokenOut.mint.toString() }, `Trade not found`);
-      } else {
-        const amountIn = Number(amountIn.toFixed());
-        trade.open(amountIn, this.config.fee + (Number(computedAmountOut.fee.toFixed()) / LAMPORTS_PER_SOL));
-      }
-    }
-    if (direction === 'sell') {
-      let trade = this.trades.get(tokenIn.mint.toString());
-      if (!trade) {
-        logger.error({ mint: tokenIn.mint.toString() }, `Trade not found`);
-      } else {
-        const amountOut = Number(computedAmountOut.amountOut.toFixed());
-        trade.close(amountOut, this.config.fee + (Number(computedAmountOut.fee.toFixed()) / LAMPORTS_PER_SOL), 'closed');
-        this.balance += trade.profit;
-      }
-    }
   }
 }
