@@ -26,12 +26,19 @@ import { JitoTransactionExecutor } from './transactions/jito-rpc-transaction-exe
 
 export interface BotConfig {
   wallet: Keypair;
+  checkRenounced: boolean;
+  checkFreezable: boolean;
+  checkBurned: boolean;
+  checkLocked: boolean;
+  checkHoneypotSolsniffer: boolean;
+  checkRugs: boolean;
+  checkRugsDelay: number;
   minPoolSize: TokenAmount;
   maxPoolSize: TokenAmount;
   quoteToken: Token;
   quoteAmount: TokenAmount;
   quoteAta: PublicKey;
-  maxTokensAtTheTime: number;
+	maxTokensAtTheTime: number;
   useSnipeList: boolean;
   autoSell: boolean;
   autoBuyDelay: number;

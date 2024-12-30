@@ -5,7 +5,19 @@ import { BurnFilter } from './burn.filter';
 import { MutableFilter } from './mutable.filter';
 import { RenouncedFreezeFilter } from './renounced.filter';
 import { PoolSizeFilter } from './pool-size.filter';
-import { CHECK_IF_BURNED, CHECK_IF_FREEZABLE, CHECK_IF_MINT_IS_RENOUNCED, CHECK_IF_MUTABLE, CHECK_IF_SOCIALS, logger } from '../helpers';
+import {
+	CHECK_HONEYPOT_SOLSNIFFER,
+	CHECK_IF_BURNED,
+	CHECK_IF_FREEZABLE,
+	CHECK_IF_IS_LOCKED,
+	CHECK_IF_MINT_IS_RENOUNCED,
+	CHECK_IF_MUTABLE,
+	CHECK_IF_SOCIALS,
+	RUG_CHECK,
+	logger
+} from '../helpers';
+import { LockedFilter } from './locked.filter';
+import { RugcheckHoneypotFilter } from './rugcheck.honeypot.filter';
 
 export interface Filter {
   execute(poolKeysV4: LiquidityPoolKeysV4): Promise<FilterResult>;
@@ -14,6 +26,7 @@ export interface Filter {
 export interface FilterResult {
   ok: boolean;
   message?: string;
+  data?: any;
 }
 
 export interface PoolFilterArgs {
@@ -31,6 +44,17 @@ export class PoolFilters {
   ) {
     if (CHECK_IF_BURNED) {
       this.filters.push(new BurnFilter(connection));
+    }
+		// TODO: Probably same as CHECK_IF_MUTABLE
+    if (CHECK_IF_IS_LOCKED) {
+      this.filters.push(new LockedFilter(connection));
+    }
+
+    if (RUG_CHECK) {
+      if (CHECK_HONEYPOT_SOLSNIFFER) {
+        // this.filters.push(new SolsnifferHoneypotFilter(connection));
+      }
+      this.filters.push(new RugcheckHoneypotFilter(connection));
     }
 
     if (CHECK_IF_MINT_IS_RENOUNCED || CHECK_IF_FREEZABLE) {
@@ -60,6 +84,9 @@ export class PoolFilters {
 
     for (const filterResult of result.filter((r) => !r.ok)) {
       logger.trace(filterResult.message);
+      if (filterResult?.data) {
+        logger.debug(filterResult.data);
+      }
     }
 
     return false;

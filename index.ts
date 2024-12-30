@@ -6,48 +6,51 @@ import { AccountLayout, getAssociatedTokenAddressSync } from '@solana/spl-token'
 import { Bot, BotConfig } from './bot';
 import { DefaultTransactionExecutor, TransactionExecutor } from './transactions';
 import {
-  getToken,
-  getWallet,
-  logger,
-  COMMITMENT_LEVEL,
-  RPC_ENDPOINT,
-  RPC_WEBSOCKET_ENDPOINT,
-  PRE_LOAD_EXISTING_MARKETS,
-  LOG_LEVEL,
-  QUOTE_MINT,
-  MAX_POOL_SIZE,
-  MIN_POOL_SIZE,
-  QUOTE_AMOUNT,
-  PRIVATE_KEY,
-  USE_SNIPE_LIST,
-  AUTO_SELL_DELAY,
-  MAX_SELL_RETRIES,
-  AUTO_SELL,
-  MAX_BUY_RETRIES,
-  AUTO_BUY_DELAY,
-  COMPUTE_UNIT_LIMIT,
-  COMPUTE_UNIT_PRICE,
-  CACHE_NEW_MARKETS,
-  TAKE_PROFIT,
-  STOP_LOSS,
-  BUY_SLIPPAGE,
-  SELL_SLIPPAGE,
-  PRICE_CHECK_DURATION,
-  PRICE_CHECK_INTERVAL,
-  SNIPE_LIST_REFRESH_INTERVAL,
-  TRANSACTION_EXECUTOR,
-  CUSTOM_FEE,
-  FILTER_CHECK_INTERVAL,
-  FILTER_CHECK_DURATION,
-  CONSECUTIVE_FILTER_MATCHES,
-  MAX_TOKENS_AT_THE_TIME,
-  CHECK_IF_MINT_IS_RENOUNCED,
-  CHECK_IF_FREEZABLE,
-  CHECK_IF_BURNED,
-  CHECK_IF_MUTABLE,
-  CHECK_IF_SOCIALS,
-  TRAILING_STOP_LOSS,
-  SKIP_SELLING_IF_LOST_MORE_THAN,
+	getToken,
+	getWallet,
+	logger,
+	COMMITMENT_LEVEL,
+	RPC_ENDPOINT,
+	RPC_WEBSOCKET_ENDPOINT,
+	PRE_LOAD_EXISTING_MARKETS,
+	LOG_LEVEL,
+	QUOTE_MINT,
+	MAX_POOL_SIZE,
+	MIN_POOL_SIZE,
+	QUOTE_AMOUNT,
+	PRIVATE_KEY,
+	AUTO_SELL_DELAY,
+	MAX_SELL_RETRIES,
+	AUTO_SELL,
+	MAX_BUY_RETRIES,
+	AUTO_BUY_DELAY,
+	COMPUTE_UNIT_LIMIT,
+	COMPUTE_UNIT_PRICE,
+	CACHE_NEW_MARKETS,
+	TAKE_PROFIT,
+	STOP_LOSS,
+	BUY_SLIPPAGE,
+	SELL_SLIPPAGE,
+	PRICE_CHECK_DURATION,
+	PRICE_CHECK_INTERVAL,
+	SNIPE_LIST_REFRESH_INTERVAL,
+	TRANSACTION_EXECUTOR,
+	USE_SNIPE_LIST,
+	CUSTOM_FEE,
+	FILTER_CHECK_INTERVAL,
+	FILTER_CHECK_DURATION,
+	CONSECUTIVE_FILTER_MATCHES,
+	MAX_TOKENS_AT_THE_TIME,
+	CHECK_IF_MINT_IS_RENOUNCED,
+	CHECK_IF_FREEZABLE,
+	CHECK_IF_BURNED,
+	CHECK_IF_MUTABLE,
+	CHECK_IF_SOCIALS,
+	CHECK_IF_IS_LOCKED,
+	CHECK_HONEYPOT_SOLSNIFFER,
+	RUG_CHECK, RUG_CHECK_WAIT_TIMEOUT_SECONDS,
+	TRAILING_STOP_LOSS,
+	SKIP_SELLING_IF_LOST_MORE_THAN,
 } from './helpers';
 import { version } from './package.json';
 import { WarpTransactionExecutor } from './transactions/warp-transaction-executor';
@@ -59,22 +62,22 @@ const connection = new Connection(RPC_ENDPOINT, {
 });
 
 function printDetails(wallet: Keypair, quoteToken: Token, bot: Bot) {
-  logger.info(`  
-                                        ..   :-===++++-     
-                                .-==+++++++- =+++++++++-    
-            ..:::--===+=.=:     .+++++++++++:=+++++++++:    
-    .==+++++++++++++++=:+++:    .+++++++++++.=++++++++-.    
-    .-+++++++++++++++=:=++++-   .+++++++++=:.=+++++-::-.    
-     -:+++++++++++++=:+++++++-  .++++++++-:- =+++++=-:      
-      -:++++++=++++=:++++=++++= .++++++++++- =+++++:        
-       -:++++-:=++=:++++=:-+++++:+++++====--:::::::.        
-        ::=+-:::==:=+++=::-:--::::::::::---------::.        
-         ::-:  .::::::::.  --------:::..                    
-          :-    .:.-:::.                                    
+  logger.info(`
+                                        ..   :-===++++-
+                                .-==+++++++- =+++++++++-
+            ..:::--===+=.=:     .+++++++++++:=+++++++++:
+    .==+++++++++++++++=:+++:    .+++++++++++.=++++++++-.
+    .-+++++++++++++++=:=++++-   .+++++++++=:.=+++++-::-.
+     -:+++++++++++++=:+++++++-  .++++++++-:- =+++++=-:
+      -:++++++=++++=:++++=++++= .++++++++++- =+++++:
+       -:++++-:=++=:++++=:-+++++:+++++====--:::::::.
+        ::=+-:::==:=+++=::-:--::::::::::---------::.
+         ::-:  .::::::::.  --------:::..
+          :-    .:.-:::.
 
           WARP DRIVE ACTIVATED 🚀🐟
           Made with ❤️ by humans.
-          Version: ${version}                                          
+          Version: ${version}
   `);
 
   const botConfig = bot.config;
@@ -131,7 +134,11 @@ function printDetails(wallet: Keypair, quoteToken: Token, bot: Bot) {
     logger.info(`Check renounced: ${CHECK_IF_MINT_IS_RENOUNCED}`);
     logger.info(`Check freezable: ${CHECK_IF_FREEZABLE}`);
     logger.info(`Check burned: ${CHECK_IF_BURNED}`);
-    logger.info(`Check mutable: ${CHECK_IF_MUTABLE}`);
+		logger.info(`Check SolSniffer: ${botConfig.checkHoneypotSolsniffer}`);
+		logger.info(`Check Rugs: ${botConfig.checkRugs}`);
+		logger.info(`Check Rug Delay (sec): ${botConfig.checkRugsDelay}`);
+		logger.info(`Check Liquidity Locked: ${botConfig.checkLocked}`);
+		logger.info(`Check mutable: ${CHECK_IF_MUTABLE}`);
     logger.info(`Check socials: ${CHECK_IF_SOCIALS}`);
     logger.info(`Min pool size: ${botConfig.minPoolSize.toFixed()}`);
     logger.info(`Max pool size: ${botConfig.maxPoolSize.toFixed()}`);
@@ -170,6 +177,13 @@ const runListener = async () => {
   const botConfig = <BotConfig>{
     wallet,
     quoteAta: getAssociatedTokenAddressSync(quoteToken.mint, wallet.publicKey),
+    checkRenounced: CHECK_IF_MINT_IS_RENOUNCED,
+    checkFreezable: CHECK_IF_FREEZABLE,
+    checkBurned: CHECK_IF_BURNED,
+    checkLocked: CHECK_IF_IS_LOCKED,
+    checkHoneypotSolsniffer: CHECK_HONEYPOT_SOLSNIFFER,
+    checkRugs: RUG_CHECK,
+    checkRugsDelay: RUG_CHECK_WAIT_TIMEOUT_SECONDS,
     minPoolSize: new TokenAmount(quoteToken, MIN_POOL_SIZE, false),
     maxPoolSize: new TokenAmount(quoteToken, MAX_POOL_SIZE, false),
     quoteToken,

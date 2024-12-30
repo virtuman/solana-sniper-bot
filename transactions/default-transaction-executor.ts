@@ -6,7 +6,7 @@ import {
   VersionedTransaction,
 } from '@solana/web3.js';
 import { TransactionExecutor } from './transaction-executor.interface';
-import { logger } from '../helpers';
+import { logger, PAPER_TRADING_ONLY } from '../helpers';
 
 export class DefaultTransactionExecutor implements TransactionExecutor {
   constructor(private readonly connection: Connection) {}
@@ -15,7 +15,12 @@ export class DefaultTransactionExecutor implements TransactionExecutor {
     transaction: VersionedTransaction,
     payer: Keypair,
     latestBlockhash: BlockhashWithExpiryBlockHeight,
-  ): Promise<{ confirmed: boolean; signature?: string, error?: string }> {
+  ): Promise<{ confirmed: boolean; signature?: string; error?: string }> {
+    if (PAPER_TRADING_ONLY) {
+      logger.debug('Simulating paper trading transaction...');
+      return { confirmed: true, signature: 'PAPER_TRADING_ONLY' };
+    }
+
     logger.debug('Executing transaction...');
     const signature = await this.execute(transaction);
 

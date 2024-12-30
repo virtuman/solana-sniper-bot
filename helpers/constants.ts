@@ -3,11 +3,15 @@ import dotenv from 'dotenv';
 import { Commitment } from '@solana/web3.js';
 import { logger } from './logger';
 
-dotenv.config();
+dotenv.config({ override: true });
 
-const retrieveEnvVariable = (variableName: string, logger: Logger) => {
+const retrieveEnvVariable = (variableName: string, logger: Logger, defaultValue: string = '') => {
   const variable = process.env[variableName] || '';
   if (!variable) {
+    if (defaultValue) {
+      logger.warn(`${variableName} is not set, using default value: ${defaultValue}`);
+      return defaultValue;
+    }
     logger.error(`${variableName} is not set`);
     process.exit(1);
   }
@@ -15,13 +19,14 @@ const retrieveEnvVariable = (variableName: string, logger: Logger) => {
 };
 
 // Wallet
-export const PRIVATE_KEY = retrieveEnvVariable('PRIVATE_KEY', logger);
 
 // Connection
-export const NETWORK = 'mainnet-beta';
+export const NETWORK = retrieveEnvVariable('SOLANA_NETWORK', logger, 'mainnet-beta');
+export const PRIVATE_KEY = retrieveEnvVariable(`${NETWORK.toUpperCase()}_PRIVATE_KEY`, logger);
+
 export const COMMITMENT_LEVEL: Commitment = retrieveEnvVariable('COMMITMENT_LEVEL', logger) as Commitment;
-export const RPC_ENDPOINT = retrieveEnvVariable('RPC_ENDPOINT', logger);
-export const RPC_WEBSOCKET_ENDPOINT = retrieveEnvVariable('RPC_WEBSOCKET_ENDPOINT', logger);
+export const RPC_ENDPOINT = retrieveEnvVariable(`RPC_${NETWORK.toUpperCase()}_ENDPOINT`, logger);
+export const RPC_WEBSOCKET_ENDPOINT = retrieveEnvVariable(`RPC_${NETWORK.toUpperCase()}_WEBSOCKET_ENDPOINT`, logger);
 
 // Bot
 export const LOG_LEVEL = retrieveEnvVariable('LOG_LEVEL', logger);
@@ -65,3 +70,27 @@ export const MIN_POOL_SIZE = retrieveEnvVariable('MIN_POOL_SIZE', logger);
 export const MAX_POOL_SIZE = retrieveEnvVariable('MAX_POOL_SIZE', logger);
 export const USE_SNIPE_LIST = retrieveEnvVariable('USE_SNIPE_LIST', logger) === 'true';
 export const SNIPE_LIST_REFRESH_INTERVAL = Number(retrieveEnvVariable('SNIPE_LIST_REFRESH_INTERVAL', logger));
+
+export const PAPER_TRADING_ONLY = retrieveEnvVariable('PAPER_TRADING_ONLY', logger) === 'true';
+export const BIRD_EYE_API_KEY = retrieveEnvVariable('BIRD_EYE_API_KEY', logger);
+export const AUTO_SELL_RETRIES_BEFORE_HARD_SELL = Number(
+  retrieveEnvVariable('AUTO_SELL_RETRIES_BEFORE_HARD_SELL', logger),
+);
+export const AUTO_SELL_PERCENT = Number(retrieveEnvVariable('AUTO_SELL_PERCENT', logger));
+export const CHECK_IF_IS_LOCKED = retrieveEnvVariable('CHECK_IF_IS_LOCKED', logger) === 'true';
+export const SKIP_IF_MINT_IS_NOT_RENOUNCED = retrieveEnvVariable('SKIP_IF_MINT_IS_NOT_RENOUNCED', logger) === 'true';
+export const SKIP_IF_IS_NOT_LOCKED = retrieveEnvVariable('SKIP_IF_IS_NOT_LOCKED', logger) === 'true';
+export const CHECK_BUY_SELL_PRICES = retrieveEnvVariable('CHECK_BUY_SELL_PRICES', logger) === 'true';
+export const SKIP_IF_NO_BUY_SELL_PRICES = retrieveEnvVariable('SKIP_IF_NO_BUY_SELL_PRICES', logger) === 'true';
+export const CHECK_HONEYPOT_SOLSNIFFER = retrieveEnvVariable('CHECK_BUY_SELL_PRICES', logger) === 'true';
+export const SKIP_IF_HONEYPOT_SOLSNIFFER = retrieveEnvVariable('SKIP_IF_NO_BUY_SELL_PRICES', logger) === 'true';
+export const RUG_CHECK = retrieveEnvVariable('RUG_CHECK', logger) === 'true';
+export const RUG_CHECK_WAIT_TIMEOUT_SECONDS = Number(retrieveEnvVariable('RUG_CHECK_WAIT_TIMEOUT_SECONDS', logger));
+export const TRY_COUNT_FOR_BURNED_AND_LOCKED_CHECK = retrieveEnvVariable(
+  'TRY_COUNT_FOR_BURNED_AND_LOCKED_CHECK',
+  logger,
+);
+export const WAIT_TIME_FOR_EACH_BURNED_AND_LOCKED_CHECK = retrieveEnvVariable(
+  'WAIT_TIME_FOR_EACH_BURNED_AND_LOCKED_CHECK',
+  logger,
+);
