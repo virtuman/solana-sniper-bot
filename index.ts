@@ -1,58 +1,68 @@
 import { MarketCache, PoolCache } from './cache';
 import { Listeners } from './listeners';
 import { Connection, KeyedAccountInfo, Keypair, LAMPORTS_PER_SOL } from '@solana/web3.js';
-import { LIQUIDITY_STATE_LAYOUT_V4, MARKET_STATE_LAYOUT_V3, Currency, CurrencyAmount, Token, TokenAmount } from '@raydium-io/raydium-sdk';
+import {
+  LIQUIDITY_STATE_LAYOUT_V4,
+  MARKET_STATE_LAYOUT_V3,
+  Currency,
+  CurrencyAmount,
+  Token,
+  TokenAmount,
+} from '@raydium-io/raydium-sdk';
 import { AccountLayout, getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { Bot, BotConfig } from './bot';
 import { DefaultTransactionExecutor, TransactionExecutor } from './transactions';
 import {
-	getToken,
-	getWallet,
-	logger,
-	COMMITMENT_LEVEL,
-	RPC_ENDPOINT,
-	RPC_WEBSOCKET_ENDPOINT,
-	PRE_LOAD_EXISTING_MARKETS,
-	LOG_LEVEL,
-	LOG_FILENAME,
-	QUOTE_MINT,
-	MAX_POOL_SIZE,
-	MIN_POOL_SIZE,
-	QUOTE_AMOUNT,
-	PRIVATE_KEY,
-	AUTO_SELL_DELAY,
-	MAX_SELL_RETRIES,
-	AUTO_SELL,
-	MAX_BUY_RETRIES,
-	AUTO_BUY_DELAY,
-	COMPUTE_UNIT_LIMIT,
-	COMPUTE_UNIT_PRICE,
-	CACHE_NEW_MARKETS,
-	TAKE_PROFIT,
-	STOP_LOSS,
-	BUY_SLIPPAGE,
-	SELL_SLIPPAGE,
-	PRICE_CHECK_DURATION,
-	PRICE_CHECK_INTERVAL,
-	SNIPE_LIST_REFRESH_INTERVAL,
-	TRANSACTION_EXECUTOR,
-	USE_SNIPE_LIST,
-	CUSTOM_FEE,
-	FILTER_CHECK_INTERVAL,
-	FILTER_CHECK_DURATION,
-	CONSECUTIVE_FILTER_MATCHES,
-	MAX_TOKENS_AT_THE_TIME,
-	CHECK_IF_MINT_IS_RENOUNCED,
-	CHECK_IF_FREEZABLE,
-	CHECK_IF_BURNED,
-	CHECK_IF_MUTABLE,
-	CHECK_IF_SOCIALS,
-	CHECK_IF_IS_LOCKED,
-	CHECK_HONEYPOT_SOLSNIFFER,
-	RUG_CHECK, RUG_CHECK_WAIT_TIMEOUT_SECONDS,
-	TRAILING_STOP_LOSS,
-	SKIP_SELLING_IF_LOST_MORE_THAN,
-	CHECK_MARKET_CAP,
+  getToken,
+  getWallet,
+  logger,
+  COMMITMENT_LEVEL,
+  RPC_ENDPOINT,
+  RPC_WEBSOCKET_ENDPOINT,
+  PRE_LOAD_EXISTING_MARKETS,
+  LOG_LEVEL,
+  LOG_FILENAME,
+  QUOTE_MINT,
+  MAX_POOL_SIZE,
+  MIN_POOL_SIZE,
+  QUOTE_AMOUNT,
+  PRIVATE_KEY,
+  AUTO_SELL_DELAY,
+  MAX_SELL_RETRIES,
+  AUTO_SELL,
+  MAX_BUY_RETRIES,
+  AUTO_BUY_DELAY,
+  COMPUTE_UNIT_LIMIT,
+  COMPUTE_UNIT_PRICE,
+  CACHE_NEW_MARKETS,
+  TAKE_PROFIT,
+  STOP_LOSS,
+  BUY_SLIPPAGE,
+  SELL_SLIPPAGE,
+  PRICE_CHECK_DURATION,
+  PRICE_CHECK_INTERVAL,
+  SNIPE_LIST_REFRESH_INTERVAL,
+  TRANSACTION_EXECUTOR,
+  USE_SNIPE_LIST,
+  CUSTOM_FEE,
+  FILTER_CHECK_INTERVAL,
+  FILTER_CHECK_DURATION,
+  CONSECUTIVE_FILTER_MATCHES,
+  MAX_TOKENS_AT_THE_TIME,
+  CHECK_IF_MINT_IS_RENOUNCED,
+  CHECK_IF_FREEZABLE,
+  CHECK_IF_BURNED,
+  CHECK_IF_MUTABLE,
+  CHECK_IF_SOCIALS,
+  CHECK_IF_IS_LOCKED,
+  CHECK_HONEYPOT_SOLSNIFFER,
+  RUG_CHECK,
+  RUG_CHECK_WAIT_TIMEOUT_SECONDS,
+  TRAILING_STOP_LOSS,
+  SKIP_SELLING_IF_LOST_MORE_THAN,
+  CHECK_MARKET_CAP,
+  MARKETCAP_TARGET,
+  MARKETCAP_TARGET_TIME,
 } from './helpers';
 import { version } from './package.json';
 import { WarpTransactionExecutor } from './transactions/warp-transaction-executor';
@@ -137,13 +147,17 @@ function printDetails(wallet: Keypair, quoteToken: Token, bot: Bot) {
     logger.info(`Consecutive filter matches: ${botConfig.consecutiveMatchCount}`);
     logger.info(`Check renounced: ${CHECK_IF_MINT_IS_RENOUNCED}`);
     logger.info(`Check market cap: ${CHECK_MARKET_CAP}`);
+    if (CHECK_MARKET_CAP) {
+      logger.info(`Min marketcap: ${MARKETCAP_TARGET}`);
+      logger.info(`Wait mcap (in minutes): ${MARKETCAP_TARGET_TIME}`);
+    }
     logger.info(`Check freezable: ${CHECK_IF_FREEZABLE}`);
     logger.info(`Check burned: ${CHECK_IF_BURNED}`);
-		logger.info(`Check SolSniffer: ${botConfig.checkHoneypotSolsniffer}`);
-		logger.info(`Check Rugs: ${botConfig.checkRugs}`);
-		logger.info(`Check Rug Delay (sec): ${botConfig.checkRugsDelay}`);
-		logger.info(`Check Liquidity Locked: ${botConfig.checkLocked}`);
-		logger.info(`Check mutable: ${CHECK_IF_MUTABLE}`);
+    logger.info(`Check SolSniffer: ${botConfig.checkHoneypotSolsniffer}`);
+    logger.info(`Check Rugs: ${botConfig.checkRugs}`);
+    logger.info(`Check Rug Delay (sec): ${botConfig.checkRugsDelay}`);
+    logger.info(`Check Liquidity Locked: ${botConfig.checkLocked}`);
+    logger.info(`Check mutable: ${CHECK_IF_MUTABLE}`);
     logger.info(`Check socials: ${CHECK_IF_SOCIALS}`);
     logger.info(`Min pool size: ${botConfig.minPoolSize.toFixed()}`);
     logger.info(`Max pool size: ${botConfig.maxPoolSize.toFixed()}`);
