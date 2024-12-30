@@ -18,7 +18,7 @@ To run the script you need to:
 - Install dependencies by typing: `npm install`
 - Run the script by typing: `npm run start` in terminal
 
-You should see the following output:  
+You should see the following output:
 ![output](readme/output.png)
 
 ### Configuration
@@ -36,6 +36,7 @@ You should see the following output:
 #### Bot
 
 - `LOG_LEVEL` - Set logging level, e.g., `info`, `debug`, `trace`, etc.
+- `LOG_FILENAME` - Filename for trade log journal, set to `none` to disable.
 - `MAX_TOKENS_AT_A_TIME` - Set to `1` to process buying one token at a time.
 - `COMPUTE_UNIT_LIMIT` - Compute limit used to calculate fees.
 - `COMPUTE_UNIT_PRICE` - Compute price used to calculate fees.
@@ -134,15 +135,15 @@ To collect more information on an issue, please change `LOG_LEVEL` to `debug`.
 
 ### Unsupported RPC node
 
-- If you see following error in your log file:  
-  `Error: 410 Gone:  {"jsonrpc":"2.0","error":{"code": 410, "message":"The RPC call or parameters have been disabled."}, "id": "986f3599-b2b7-47c4-b951-074c19842bad" }`  
+- If you see following error in your log file:
+  `Error: 410 Gone:  {"jsonrpc":"2.0","error":{"code": 410, "message":"The RPC call or parameters have been disabled."}, "id": "986f3599-b2b7-47c4-b951-074c19842bad" }`
   it means your RPC node doesn't support methods needed to execute script.
   - FIX: Change your RPC node. You can use Helius or Quicknode.
 
 ### No token account
 
-- If you see following error in your log file:  
-  `Error: No SOL token account found in wallet: `  
+- If you see following error in your log file:
+  `Error: No SOL token account found in wallet: `
   it means that wallet you provided doesn't have USDC/WSOL token account.
   - FIX: Go to dex and swap some SOL to USDC/WSOL. For example when you swap sol to wsol you should see it in wallet as shown below:
 

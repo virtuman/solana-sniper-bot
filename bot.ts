@@ -5,6 +5,7 @@ import {
   PublicKey,
   TransactionMessage,
   VersionedTransaction,
+  LAMPORTS_PER_SOL,
 } from '@solana/web3.js';
 import {
   createAssociatedTokenAccountIdempotentInstruction,
@@ -18,14 +19,16 @@ import { Liquidity, LiquidityPoolKeysV4, LiquidityStateV4, Percent, Token, Token
 import { MarketCache, PoolCache, SnipeListCache } from './cache';
 import { PoolFilters } from './filters';
 import { TransactionExecutor } from './transactions';
-import { createPoolKeys, logger, NETWORK, sleep } from './helpers';
+import { createPoolKeys, logger, NETWORK, sleep, Trade } from './helpers';
 import { Semaphore } from 'async-mutex';
 import BN from 'bn.js';
 import { WarpTransactionExecutor } from './transactions/warp-transaction-executor';
 import { JitoTransactionExecutor } from './transactions/jito-rpc-transaction-executor';
+import * as fs from 'fs';
 
 export interface BotConfig {
   wallet: Keypair;
+  logFilename: string;
   checkRenounced: boolean;
   checkFreezable: boolean;
   checkBurned: boolean;
@@ -47,6 +50,7 @@ export interface BotConfig {
   maxSellRetries: number;
   unitLimit: number;
   unitPrice: number;
+  fee: number,
   takeProfit: number;
   stopLoss: number;
   trailingStopLoss: boolean;
@@ -61,7 +65,12 @@ export interface BotConfig {
 }
 
 export class Bot {
-  // snipe list
+	public balance: number = 0;
+	private tradesCount: number = 0;
+	private trades: Map<string, Trade> = new Map<string, Trade>();
+	private logFilename: string= '';
+
+	// snipe list
   private readonly snipeListCache?: SnipeListCache;
 
   private readonly semaphore: Semaphore;
@@ -85,7 +94,28 @@ export class Bot {
       this.snipeListCache = new SnipeListCache();
       this.snipeListCache.init();
     }
-  }
+
+		this.logFilename = this.config.logFilename;
+	}
+
+	async init() {
+		await this.updateBalance();
+
+		// Read trades from log file, and get last trade id
+		const data = fs.readFileSync(this.logFilename, { flag: 'a+' });
+		const lines = data.toString().split('\n').filter((line) => line.length > 0);
+		const objects = lines.map(line => JSON.parse(line));
+		const lastTrade = objects[objects.length - 1];
+		if (lastTrade) {
+			this.tradesCount = lastTrade.id;
+		}
+	}
+
+	async updateBalance() {
+		const solBalance = (await this.connection.getBalance(this.config.wallet.publicKey)) / LAMPORTS_PER_SOL;
+		const quoteBalance = (await this.connection.getBalance(this.config.quoteAta)) / LAMPORTS_PER_SOL;
+		this.balance = solBalance + quoteBalance;
+	}
 
   async validate() {
     try {
@@ -141,6 +171,10 @@ export class Bot {
         }
       }
 
+      let trade = new Trade(poolState.baseMint.toString(), this.trade_log_filename);
+      trade.transitionStart();
+      this.trades.set(poolState.baseMint.toString(), trade);
+
       for (let i = 0; i < this.config.maxBuyRetries; i++) {
         try {
           logger.info(
@@ -169,7 +203,6 @@ export class Bot {
               },
               `Confirmed buy tx`,
             );
-
             break;
           }
 
@@ -187,6 +220,7 @@ export class Bot {
       }
     } catch (error) {
       logger.error({ mint: poolState.baseMint.toString(), error }, `Failed to buy token`);
+      this.trades.delete(poolState.baseMint.toString());
     } finally {
       this.semaphore.release();
     }
@@ -194,6 +228,11 @@ export class Bot {
 
   public async sell(accountId: PublicKey, rawAccount: RawAccount) {
     this.sellExecutionCount++;
+
+    let trade = this.trades.get(rawAccount.mint.toString());
+    if (!trade) {
+      logger.error({ mint: rawAccount.mint.toString() }, `Trade not found`);
+    }
 
     try {
       logger.trace({ mint: rawAccount.mint }, `Processing new token...`);
@@ -220,6 +259,10 @@ export class Bot {
 
       const market = await this.marketStorage.get(poolData.state.marketId.toString());
       const poolKeys: LiquidityPoolKeysV4 = createPoolKeys(new PublicKey(poolData.id), poolData.state, market);
+
+			if (trade) {
+				trade.transitionStart();
+			}
 
       for (let i = 0; i < this.config.maxSellRetries; i++) {
         try {
@@ -273,7 +316,20 @@ export class Bot {
       }
     } catch (error) {
       logger.error({ mint: rawAccount.mint.toString(), error }, `Failed to sell token`);
+      if (trade) {
+        trade.close(0, 0, 'sell_failed');
+        this.balance += trade.profit;
+      }
     } finally {
+			await this.updateBalance();
+			if (trade) {
+				this.tradesCount++;
+				const err = trade.completeAndLog(this.balance, this.tradesCount);
+				if (err) {
+					logger.warn({ error: err }, `Failed to write trade in journal`);
+				}
+				this.trades.delete(rawAccount.mint.toString());
+			}
       this.sellExecutionCount--;
     }
   }
@@ -347,7 +403,12 @@ export class Bot {
     const transaction = new VersionedTransaction(messageV0);
     transaction.sign([wallet, ...innerTransaction.signers]);
 
-    return this.txExecutor.executeAndConfirm(transaction, wallet, latestBlockhash);
+    const transactionResult = await this.txExecutor.executeAndConfirm(transaction, wallet, latestBlockhash);
+    if (transactionResult.confirmed) {
+      await this.swap_log(direction, tokenIn, tokenOut, amountIn, computedAmountOut);
+    }
+
+    return transactionResult;
   }
 
   private async filterMatch(poolKeys: LiquidityPoolKeysV4) {
@@ -487,5 +548,27 @@ export class Bot {
     } while (timesChecked < timesToCheck);
 
     return true;
+  }
+
+  async swap_log(direction: string, tokenIn: Token, tokenOut: Token, amountIn: TokenAmount, computedAmountOut: any) {
+    if (direction === 'buy') {
+      let trade = this.trades.get(tokenOut.mint.toString());
+      if (!trade) {
+        logger.error({ mint: tokenOut.mint.toString() }, `Trade not found`);
+      } else {
+        const amountIn = Number(amountIn.toFixed());
+        trade.open(amountIn, this.config.fee + (Number(computedAmountOut.fee.toFixed()) / LAMPORTS_PER_SOL));
+      }
+    }
+    if (direction === 'sell') {
+      let trade = this.trades.get(tokenIn.mint.toString());
+      if (!trade) {
+        logger.error({ mint: tokenIn.mint.toString() }, `Trade not found`);
+      } else {
+        const amountOut = Number(computedAmountOut.amountOut.toFixed());
+        trade.close(amountOut, this.config.fee + (Number(computedAmountOut.fee.toFixed()) / LAMPORTS_PER_SOL), 'closed');
+        this.balance += trade.profit;
+      }
+    }
   }
 }

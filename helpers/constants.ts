@@ -30,6 +30,7 @@ export const RPC_WEBSOCKET_ENDPOINT = retrieveEnvVariable(`RPC_${NETWORK.toUpper
 
 // Bot
 export const LOG_LEVEL = retrieveEnvVariable('LOG_LEVEL', logger);
+export const LOG_FILENAME = retrieveEnvVariable('LOG_FILENAME', logger);
 export const MAX_TOKENS_AT_THE_TIME = Number(retrieveEnvVariable('MAX_TOKENS_AT_THE_TIME', logger));
 export const COMPUTE_UNIT_LIMIT = Number(retrieveEnvVariable('COMPUTE_UNIT_LIMIT', logger));
 export const COMPUTE_UNIT_PRICE = Number(retrieveEnvVariable('COMPUTE_UNIT_PRICE', logger));
