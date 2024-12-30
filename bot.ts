@@ -337,6 +337,28 @@ export class Bot {
     }
   }
 
+  async swap_log(direction: string, tokenIn: Token, tokenOut: Token, amountIn: TokenAmount, computedAmountOut: any) {
+    if (direction === 'buy') {
+      let trade = this.trades.get(tokenOut.mint.toString());
+      if (!trade) {
+        logger.error({ mint: tokenOut.mint.toString() }, `Trade not found`);
+      } else {
+        const amountInNumber = Number(amountIn.toFixed());
+        trade.open(amountInNumber, this.config.fee + Number(computedAmountOut.fee.toFixed()) / LAMPORTS_PER_SOL);
+      }
+    }
+    if (direction === 'sell') {
+      let trade = this.trades.get(tokenIn.mint.toString());
+      if (!trade) {
+        logger.error({ mint: tokenIn.mint.toString() }, `Trade not found`);
+      } else {
+        const amountOut = Number(computedAmountOut.amountOut.toFixed());
+        trade.close(amountOut, this.config.fee + Number(computedAmountOut.fee.toFixed()) / LAMPORTS_PER_SOL, 'closed');
+        this.balance += trade.profit;
+      }
+    }
+  }
+
   // noinspection JSUnusedLocalSymbols
   private async swap(
     poolKeys: LiquidityPoolKeysV4,
@@ -385,18 +407,18 @@ export class Bot {
         ...(this.isWarp || this.isJito
           ? []
           : [
-            ComputeBudgetProgram.setComputeUnitPrice({ microLamports: this.config.unitPrice }),
-            ComputeBudgetProgram.setComputeUnitLimit({ units: this.config.unitLimit }),
-          ]),
+              ComputeBudgetProgram.setComputeUnitPrice({ microLamports: this.config.unitPrice }),
+              ComputeBudgetProgram.setComputeUnitLimit({ units: this.config.unitLimit }),
+            ]),
         ...(direction === 'buy'
           ? [
-            createAssociatedTokenAccountIdempotentInstruction(
-              wallet.publicKey,
-              ataOut,
-              wallet.publicKey,
-              tokenOut.mint,
-            ),
-          ]
+              createAssociatedTokenAccountIdempotentInstruction(
+                wallet.publicKey,
+                ataOut,
+                wallet.publicKey,
+                tokenOut.mint,
+              ),
+            ]
           : []),
         ...innerTransaction.instructions,
         ...(direction === 'sell' ? [createCloseAccountInstruction(ataIn, wallet.publicKey, wallet.publicKey)] : []),
@@ -551,27 +573,5 @@ export class Bot {
     } while (timesChecked < timesToCheck);
 
     return true;
-  }
-
-  async swap_log(direction: string, tokenIn: Token, tokenOut: Token, amountIn: TokenAmount, computedAmountOut: any) {
-    if (direction === 'buy') {
-      let trade = this.trades.get(tokenOut.mint.toString());
-      if (!trade) {
-        logger.error({ mint: tokenOut.mint.toString() }, `Trade not found`);
-      } else {
-        const amountIn = Number(amountIn.toFixed());
-        trade.open(amountIn, this.config.fee + (Number(computedAmountOut.fee.toFixed()) / LAMPORTS_PER_SOL));
-      }
-    }
-    if (direction === 'sell') {
-      let trade = this.trades.get(tokenIn.mint.toString());
-      if (!trade) {
-        logger.error({ mint: tokenIn.mint.toString() }, `Trade not found`);
-      } else {
-        const amountOut = Number(computedAmountOut.amountOut.toFixed());
-        trade.close(amountOut, this.config.fee + (Number(computedAmountOut.fee.toFixed()) / LAMPORTS_PER_SOL), 'closed');
-        this.balance += trade.profit;
-      }
-    }
   }
 }

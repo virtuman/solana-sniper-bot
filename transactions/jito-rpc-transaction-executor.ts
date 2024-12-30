@@ -97,10 +97,6 @@ export class JitoTransactionExecutor implements TransactionExecutor {
         const tokenTxSignature = bs58.encode(transaction.signatures[0]);
         return await this.confirm(tokenTxSignature, latestBlockhash);
         // return await this.confirm(jitoTxsignature, latestBlockhash);
-
-        const tokenTxSignature = bs58.encode(transaction.signatures[0]);
-
-        return await this.confirm(tokenTxSignature, latestBlockhash);
       } else {
         logger.debug(`No successful responses received for jito`);
       }
