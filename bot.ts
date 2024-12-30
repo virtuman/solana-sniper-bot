@@ -7,12 +7,14 @@ import {
   VersionedTransaction,
   LAMPORTS_PER_SOL,
 } from '@solana/web3.js';
+
 import {
   createAssociatedTokenAccountIdempotentInstruction,
   createCloseAccountInstruction,
   getAccount,
   getAssociatedTokenAddress,
   RawAccount,
+  AccountLayout,
   TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
 import { Liquidity, LiquidityPoolKeysV4, LiquidityStateV4, Percent, Token, TokenAmount } from '@raydium-io/raydium-sdk';
@@ -113,6 +115,16 @@ export class Bot {
   }
 
   async updateBalance() {
+    const tokenAccounts = await this.connection.getTokenAccountsByOwner(this.config.wallet.publicKey, {
+      programId: TOKEN_PROGRAM_ID,
+    });
+    for (const { pubkey, account } of tokenAccounts.value) {
+      const accountData = AccountLayout.decode(account.data);
+      const mint = new PublicKey(accountData.mint);
+      const balance = accountData.amount / BigInt(LAMPORTS_PER_SOL);
+
+      logger.info(`Token Mint: ${mint.toString()}, Balance: ${balance}`);
+    }
     const solBalance = (await this.connection.getBalance(this.config.wallet.publicKey)) / LAMPORTS_PER_SOL;
     const quoteBalance = (await this.connection.getBalance(this.config.quoteAta)) / LAMPORTS_PER_SOL;
     this.balance = solBalance + quoteBalance;
