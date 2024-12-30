@@ -119,6 +119,8 @@ export class Bot {
   }
 
   async validate() {
+    //TODO for testing Purpose
+    // return true;
     try {
       await getAccount(this.connection, this.config.quoteAta, this.connection.commitment);
     } catch (error) {
@@ -406,18 +408,18 @@ export class Bot {
         ...(this.isWarp || this.isJito
           ? []
           : [
-              ComputeBudgetProgram.setComputeUnitPrice({ microLamports: this.config.unitPrice }),
-              ComputeBudgetProgram.setComputeUnitLimit({ units: this.config.unitLimit }),
-            ]),
+            ComputeBudgetProgram.setComputeUnitPrice({ microLamports: this.config.unitPrice }),
+            ComputeBudgetProgram.setComputeUnitLimit({ units: this.config.unitLimit }),
+          ]),
         ...(direction === 'buy'
           ? [
-              createAssociatedTokenAccountIdempotentInstruction(
-                wallet.publicKey,
-                ataOut,
-                wallet.publicKey,
-                tokenOut.mint,
-              ),
-            ]
+            createAssociatedTokenAccountIdempotentInstruction(
+              wallet.publicKey,
+              ataOut,
+              wallet.publicKey,
+              tokenOut.mint,
+            ),
+          ]
           : []),
         ...innerTransaction.instructions,
         ...(direction === 'sell' ? [createCloseAccountInstruction(ataIn, wallet.publicKey, wallet.publicKey)] : []),

@@ -52,6 +52,7 @@ import {
 	RUG_CHECK, RUG_CHECK_WAIT_TIMEOUT_SECONDS,
 	TRAILING_STOP_LOSS,
 	SKIP_SELLING_IF_LOST_MORE_THAN,
+	CHECK_MARKET_CAP,
 } from './helpers';
 import { version } from './package.json';
 import { WarpTransactionExecutor } from './transactions/warp-transaction-executor';
@@ -135,6 +136,7 @@ function printDetails(wallet: Keypair, quoteToken: Token, bot: Bot) {
     logger.info(`Filter check duration: ${botConfig.filterCheckDuration} ms`);
     logger.info(`Consecutive filter matches: ${botConfig.consecutiveMatchCount}`);
     logger.info(`Check renounced: ${CHECK_IF_MINT_IS_RENOUNCED}`);
+    logger.info(`Check market cap: ${CHECK_MARKET_CAP}`);
     logger.info(`Check freezable: ${CHECK_IF_FREEZABLE}`);
     logger.info(`Check burned: ${CHECK_IF_BURNED}`);
 		logger.info(`Check SolSniffer: ${botConfig.checkHoneypotSolsniffer}`);

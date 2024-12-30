@@ -6,16 +6,20 @@ import { MutableFilter } from './mutable.filter';
 import { RenouncedFreezeFilter } from './renounced.filter';
 import { PoolSizeFilter } from './pool-size.filter';
 import {
-	CHECK_HONEYPOT_SOLSNIFFER,
-	CHECK_IF_BURNED,
-	CHECK_IF_FREEZABLE,
-	CHECK_IF_IS_LOCKED,
-	CHECK_IF_MINT_IS_RENOUNCED,
-	CHECK_IF_MUTABLE,
-	CHECK_IF_SOCIALS,
-	RUG_CHECK,
-	logger
+  CHECK_HONEYPOT_SOLSNIFFER,
+  CHECK_IF_BURNED,
+  CHECK_IF_FREEZABLE,
+  CHECK_IF_IS_LOCKED,
+  CHECK_IF_MINT_IS_RENOUNCED,
+  CHECK_IF_MUTABLE,
+  CHECK_IF_SOCIALS,
+  RUG_CHECK,
+  MARKETCAP_TARGET,
+  MARKETCAP_TARGET_TIME,
+  logger,
+  CHECK_MARKET_CAP,
 } from '../helpers';
+import { MarketCapFilter } from './market-cap-filter';
 import { LockedFilter } from './locked.filter';
 import { RugcheckHoneypotFilter } from './rugcheck.honeypot.filter';
 
@@ -45,7 +49,7 @@ export class PoolFilters {
     if (CHECK_IF_BURNED) {
       this.filters.push(new BurnFilter(connection));
     }
-		// TODO: Probably same as CHECK_IF_MUTABLE
+    // TODO: Probably same as CHECK_IF_MUTABLE
     if (CHECK_IF_IS_LOCKED) {
       this.filters.push(new LockedFilter(connection));
     }
@@ -62,11 +66,21 @@ export class PoolFilters {
     }
 
     if (CHECK_IF_MUTABLE || CHECK_IF_SOCIALS) {
-      this.filters.push(new MutableFilter(connection, getMetadataAccountDataSerializer(), CHECK_IF_MUTABLE, CHECK_IF_SOCIALS));
+      this.filters.push(
+        new MutableFilter(connection, getMetadataAccountDataSerializer(), CHECK_IF_MUTABLE, CHECK_IF_SOCIALS),
+      );
     }
 
     if (!args.minPoolSize.isZero() || !args.maxPoolSize.isZero()) {
       this.filters.push(new PoolSizeFilter(connection, args.quoteToken, args.minPoolSize, args.maxPoolSize));
+    }
+
+    if (CHECK_MARKET_CAP) {
+      let marketCapConfig = {
+        targetMarketCap: new TokenAmount(args.quoteToken, MARKETCAP_TARGET), // 100K in base units
+        timeWindow: Number(MARKETCAP_TARGET_TIME) * 60 * 1000, // 2 minute window to reach target
+      };
+      this.filters.push(new MarketCapFilter(connection, marketCapConfig));
     }
   }
 

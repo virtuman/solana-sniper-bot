@@ -63,6 +63,8 @@ export const FILTER_CHECK_INTERVAL = Number(retrieveEnvVariable('FILTER_CHECK_IN
 export const FILTER_CHECK_DURATION = Number(retrieveEnvVariable('FILTER_CHECK_DURATION', logger));
 export const CONSECUTIVE_FILTER_MATCHES = Number(retrieveEnvVariable('CONSECUTIVE_FILTER_MATCHES', logger));
 export const CHECK_IF_MUTABLE = retrieveEnvVariable('CHECK_IF_MUTABLE', logger) === 'true';
+export const CHECK_MARKET_CAP = retrieveEnvVariable('CHECK_MARKET_CAP', logger) === 'true';
+
 export const CHECK_IF_SOCIALS = retrieveEnvVariable('CHECK_IF_SOCIALS', logger) === 'true';
 export const CHECK_IF_MINT_IS_RENOUNCED = retrieveEnvVariable('CHECK_IF_MINT_IS_RENOUNCED', logger) === 'true';
 export const CHECK_IF_FREEZABLE = retrieveEnvVariable('CHECK_IF_FREEZABLE', logger) === 'true';
@@ -71,6 +73,9 @@ export const MIN_POOL_SIZE = retrieveEnvVariable('MIN_POOL_SIZE', logger);
 export const MAX_POOL_SIZE = retrieveEnvVariable('MAX_POOL_SIZE', logger);
 export const USE_SNIPE_LIST = retrieveEnvVariable('USE_SNIPE_LIST', logger) === 'true';
 export const SNIPE_LIST_REFRESH_INTERVAL = Number(retrieveEnvVariable('SNIPE_LIST_REFRESH_INTERVAL', logger));
+
+export const MARKETCAP_TARGET = retrieveEnvVariable('MARKETCAP_TARGET', logger);
+export const MARKETCAP_TARGET_TIME = retrieveEnvVariable('MARKETCAP_TARGET_TIME', logger);
 
 export const PAPER_TRADING_ONLY = retrieveEnvVariable('PAPER_TRADING_ONLY', logger) === 'true';
 export const BIRD_EYE_API_KEY = retrieveEnvVariable('BIRD_EYE_API_KEY', logger);
